@@ -155,6 +155,13 @@ body::before {
   font-family: 'DM Mono', monospace; font-size: 11px; cursor: pointer;
 }
 .date-range-row input[type="date"]:focus { outline: none; border-color: var(--gold); }
+.month-select {
+  background: #fff; border: 1px solid var(--border);
+  color: var(--text); padding: 5px 10px; border-radius: 6px;
+  font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600;
+  cursor: pointer; min-width: 160px;
+}
+.month-select:focus { outline: none; border-color: var(--gold); }
 
 /* TABLE */
 .table-outer { overflow-x: auto; width: 100%; }
@@ -571,7 +578,41 @@ function buildWeekCard(w) {
       </div>
     </div>
     <div class="date-range-row">
-      📅 Week: 
+      📅 Month: 
+      <select class="data-input month-select" data-key="w${w}_month" onchange="autoSave()">
+        <option value="">-- Select Month --</option>
+        <option value="January 2025">January 2025</option>
+        <option value="February 2025">February 2025</option>
+        <option value="March 2025">March 2025</option>
+        <option value="April 2025">April 2025</option>
+        <option value="May 2025">May 2025</option>
+        <option value="June 2025">June 2025</option>
+        <option value="July 2025">July 2025</option>
+        <option value="August 2025">August 2025</option>
+        <option value="September 2025">September 2025</option>
+        <option value="October 2025">October 2025</option>
+        <option value="November 2025">November 2025</option>
+        <option value="December 2025">December 2025</option>
+        <option value="January 2026">January 2026</option>
+        <option value="February 2026">February 2026</option>
+        <option value="March 2026">March 2026</option>
+        <option value="April 2026">April 2026</option>
+        <option value="May 2026">May 2026</option>
+        <option value="June 2026">June 2026</option>
+        <option value="July 2026">July 2026</option>
+        <option value="August 2026">August 2026</option>
+        <option value="September 2026">September 2026</option>
+        <option value="October 2026">October 2026</option>
+        <option value="November 2026">November 2026</option>
+        <option value="December 2026">December 2026</option>
+        <option value="January 2027">January 2027</option>
+        <option value="February 2027">February 2027</option>
+        <option value="March 2027">March 2027</option>
+        <option value="April 2027">April 2027</option>
+        <option value="May 2027">May 2027</option>
+        <option value="June 2027">June 2027</option>
+      </select>
+      &nbsp;&nbsp; Week:
       <input type="date" class="data-input" data-key="w${w}_start">
       to
       <input type="date" class="data-input" data-key="w${w}_end">
@@ -889,7 +930,8 @@ function saveCurrentToHistory() {
     const notes = data[`w${w}_notes`] || '';
     const start = data[`w${w}_start`] || '';
     const end = data[`w${w}_end`] || '';
-    weekData.push({ week: w, income: wiG, expenses: weG, notes, start, end });
+    const month = data[`w${w}_month`] || '';
+    weekData.push({ week: w, income: wiG, expenses: weG, notes, start, end, month });
     totalInc += wiG; totalExp += weG;
   }
   let ddTotal = 0;
@@ -936,11 +978,11 @@ function renderHistory() {
     const weeks = e.weekData.map(wd => `
       <tr>
         <td>Week ${wd.week}</td>
-        <td style="font-size:10px;color:rgba(245,240,232,0.4);">${wd.start ? wd.start + ' – ' + wd.end : '–'}</td>
+        <td style="font-size:10px;color:var(--text-faint);">${wd.month || (wd.start ? wd.start + ' – ' + wd.end : '–')}</td>
         <td class="inc">£${wd.income.toFixed(2)}</td>
         <td class="exp">£${wd.expenses.toFixed(2)}</td>
         <td class="${wd.income - wd.expenses >= 0 ? 'net-pos' : 'net-neg'}">£${(wd.income - wd.expenses).toFixed(2)}</td>
-        <td style="color:rgba(245,240,232,0.5);font-size:11px;max-width:200px;">${wd.notes ? wd.notes.substring(0, 60) + (wd.notes.length > 60 ? '…' : '') : '–'}</td>
+        <td style="color:var(--text-muted);font-size:11px;max-width:200px;">${wd.notes ? wd.notes.substring(0, 60) + (wd.notes.length > 60 ? '…' : '') : '–'}</td>
       </tr>`).join('');
     return `
       <div class="history-entry">
@@ -1056,16 +1098,258 @@ function importBackup(e) {
 }
 
 async function exportToPDF() {
-  const toolbar = document.getElementById('toolbar');
-  toolbar.style.display = 'none';
+  collectData();
   const { jsPDF } = window.jspdf;
-  const canvas = await html2canvas(document.querySelector('.app'), { scale: 3, useCORS: true, backgroundColor: '#1c1c28' });
-  toolbar.style.display = '';
-  const pdf = new jsPDF('p', 'mm', 'a4');
-  const w = pdf.internal.pageSize.getWidth();
-  const h = canvas.height * w / canvas.width;
-  pdf.addImage(canvas.toDataURL('image/png', 1.0), 'PNG', 0, 0, w, h);
-  pdf.save('Yamin_Finance.pdf');
+  const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a3' });
+  const PW = pdf.internal.pageSize.getWidth();
+  const PH = pdf.internal.pageSize.getHeight();
+  const MARGIN = 12;
+  const usableW = PW - MARGIN * 2;
+
+  const GOLD = [184, 146, 74];
+  const DARK = [26, 22, 18];
+  const GREEN = [26, 122, 74];
+  const RED = [192, 57, 43];
+  const CREAM = [250, 247, 242];
+  const WHITE = [255, 255, 255];
+  const GREY = [230, 225, 218];
+  const LGGREEN = [230, 245, 236];
+  const LGRED = [250, 230, 228];
+
+  let y = MARGIN;
+
+  function addPageIfNeeded(needed) {
+    if (y + needed > PH - MARGIN) {
+      pdf.addPage();
+      y = MARGIN;
+      drawPageHeader();
+    }
+  }
+
+  function drawPageHeader() {
+    pdf.setFillColor(...CREAM);
+    pdf.rect(0, 0, PW, 14, 'F');
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(8);
+    pdf.setTextColor(...GOLD);
+    pdf.text("YAMIN'S MASTER FINANCE", MARGIN, 9);
+    pdf.setTextColor(...DARK);
+    pdf.text(`Generated: ${new Date().toLocaleDateString('en-GB')}`, PW - MARGIN, 9, { align: 'right' });
+    pdf.setDrawColor(...GOLD);
+    pdf.setLineWidth(0.4);
+    pdf.line(MARGIN, 13, PW - MARGIN, 13);
+    y = 18;
+  }
+
+  // Title page header
+  pdf.setFillColor(...CREAM);
+  pdf.rect(0, 0, PW, 22, 'F');
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(20);
+  pdf.setTextColor(...GOLD);
+  pdf.text("YAMIN'S MASTER FINANCE", PW / 2, 13, { align: 'center' });
+  pdf.setFontSize(8);
+  pdf.setTextColor(...DARK);
+  pdf.text("Weekly Income & Expense Report", PW / 2, 19, { align: 'center' });
+  pdf.setDrawColor(...GOLD);
+  pdf.setLineWidth(0.5);
+  pdf.line(MARGIN, 22, PW - MARGIN, 22);
+  y = 28;
+
+  const iCols = incomeCategories;
+  const eCols = expenseCategories;
+  const allCols = ['Day', ...iCols, 'TOTAL INC', ...eCols, 'TOTAL EXP'];
+  const nCols = allCols.length;
+
+  // Calculate column widths
+  const dayW = 22;
+  const totW = 22;
+  const remaining = usableW - dayW - totW * 2;
+  const dataW = remaining / (iCols.length + eCols.length);
+  const colWidths = [dayW, ...iCols.map(() => dataW), totW, ...eCols.map(() => dataW), totW];
+
+  function getX(colIdx) {
+    let x = MARGIN;
+    for (let i = 0; i < colIdx; i++) x += colWidths[i];
+    return x;
+  }
+
+  function drawTableHeader(weekNum, month, startDate, endDate) {
+    // Week title bar
+    pdf.setFillColor(...GOLD);
+    pdf.rect(MARGIN, y, usableW, 8, 'F');
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(9);
+    pdf.setTextColor(255, 255, 255);
+    const weekLabel = `WEEK ${weekNum}` + (month ? `  —  ${month}` : '') + (startDate ? `  (${startDate} to ${endDate})` : '');
+    pdf.text(weekLabel, MARGIN + 3, y + 5.5);
+    y += 9;
+
+    // Column headers
+    const headerH = 10;
+    allCols.forEach((col, ci) => {
+      const x = getX(ci);
+      const w = colWidths[ci];
+      // Background
+      if (ci === 0) { pdf.setFillColor(...CREAM); }
+      else if (ci === iCols.length + 1) { pdf.setFillColor(...LGGREEN); }
+      else if (ci === allCols.length - 1) { pdf.setFillColor(...LGRED); }
+      else if (ci <= iCols.length) { pdf.setFillColor(230, 244, 236); }
+      else { pdf.setFillColor(250, 232, 230); }
+      pdf.rect(x, y, w, headerH, 'F');
+
+      // Border
+      pdf.setDrawColor(...GREY);
+      pdf.setLineWidth(0.2);
+      pdf.rect(x, y, w, headerH, 'S');
+
+      // Text color
+      if (ci === 0) pdf.setTextColor(...GOLD);
+      else if (ci <= iCols.length + 1) pdf.setTextColor(...GREEN);
+      else pdf.setTextColor(...RED);
+      if (ci === iCols.length + 1 || ci === allCols.length - 1) pdf.setTextColor(255, 255, 255);
+      if (ci === iCols.length + 1) { pdf.setFillColor(...GREEN); pdf.rect(x, y, w, headerH, 'F'); pdf.setTextColor(255,255,255); }
+      if (ci === allCols.length - 1) { pdf.setFillColor(...RED); pdf.rect(x, y, w, headerH, 'F'); pdf.setTextColor(255,255,255); }
+
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(6.5);
+      const lines = pdf.splitTextToSize(col.toUpperCase(), w - 2);
+      const lineH = 3.2;
+      const textY = y + (headerH - lines.length * lineH) / 2 + lineH;
+      lines.forEach((line, li) => {
+        pdf.text(line, x + w / 2, textY + li * lineH, { align: 'center' });
+      });
+    });
+    y += headerH;
+  }
+
+  function drawRow(rowData, isTotal = false, rowIdx = 0) {
+    const rowH = isTotal ? 9 : 8;
+    const bg = isTotal ? CREAM : (rowIdx % 2 === 0 ? WHITE : [252, 250, 247]);
+
+    allCols.forEach((col, ci) => {
+      const x = getX(ci);
+      const w = colWidths[ci];
+      let cellBg = [...bg];
+      if (ci === iCols.length + 1) cellBg = isTotal ? [210, 235, 220] : [240, 250, 244];
+      if (ci === allCols.length - 1) cellBg = isTotal ? [240, 215, 212] : [252, 240, 239];
+      if (ci === 0) cellBg = CREAM;
+
+      pdf.setFillColor(...cellBg);
+      pdf.rect(x, y, w, rowH, 'F');
+      pdf.setDrawColor(...GREY);
+      pdf.setLineWidth(0.15);
+      pdf.rect(x, y, w, rowH, 'S');
+
+      const val = rowData[ci];
+      pdf.setFont('helvetica', isTotal ? 'bold' : 'normal');
+      pdf.setFontSize(ci === 0 ? 7 : 8);
+
+      if (ci === iCols.length + 1) pdf.setTextColor(...GREEN);
+      else if (ci === allCols.length - 1) pdf.setTextColor(...RED);
+      else if (ci === 0) pdf.setTextColor(...DARK);
+      else pdf.setTextColor(...DARK);
+
+      if (isTotal) {
+        if (ci === iCols.length + 1) pdf.setTextColor(...GREEN);
+        else if (ci === allCols.length - 1) pdf.setTextColor(...RED);
+        else pdf.setTextColor(...DARK);
+      }
+
+      if (ci === 0) {
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(7);
+        pdf.setTextColor(...GOLD);
+        pdf.text(String(val || ''), x + 2, y + rowH / 2 + 2.5);
+      } else {
+        const txt = val !== undefined && val !== '' && val !== '0.00' ? String(val) : (isTotal ? String(val) : '');
+        if (txt) pdf.text(txt, x + w / 2, y + rowH / 2 + 2.5, { align: 'center' });
+      }
+    });
+    y += rowH;
+  }
+
+  // Render each week
+  for (let w = 1; w <= numWeeks; w++) {
+    addPageIfNeeded(60);
+
+    const month = data[`w${w}_month`] || '';
+    const startDate = data[`w${w}_start`] || '';
+    const endDate = data[`w${w}_end`] || '';
+    drawTableHeader(w, month, startDate, endDate);
+
+    const iLen = iCols.length, eLen = eCols.length;
+    const iSums = new Array(iLen).fill(0);
+    const eSums = new Array(eLen).fill(0);
+    let wIncTotal = 0, wExpTotal = 0;
+
+    for (let d = 0; d < 7; d++) {
+      addPageIfNeeded(10);
+      const id = `w${w}d${d}`;
+      const dayDate = data[`${id}_date`] || '';
+      const dayLabel = days[d] + (dayDate ? '\n' + dayDate : '');
+
+      const rowVals = [days[d].substring(0, 3)];
+      let rowInc = 0, rowExp = 0;
+
+      for (let i = 0; i < iLen; i++) {
+        const v = parseFloat(data[`${id}_i${i}`]) || 0;
+        rowVals.push(v > 0 ? v.toFixed(2) : '');
+        rowInc += v; iSums[i] += v;
+      }
+      rowVals.push(rowInc.toFixed(2));
+      wIncTotal += rowInc;
+
+      for (let e = 0; e < eLen; e++) {
+        const v = parseFloat(data[`${id}_e${e}`]) || 0;
+        rowVals.push(v > 0 ? v.toFixed(2) : '');
+        rowExp += v; eSums[e] += v;
+      }
+      rowVals.push(rowExp.toFixed(2));
+      wExpTotal += rowExp;
+
+      drawRow(rowVals, false, d);
+    }
+
+    // Totals row
+    addPageIfNeeded(12);
+    const totRow = ['TOTALS', ...iSums.map(v => v.toFixed(2)), wIncTotal.toFixed(2), ...eSums.map(v => v.toFixed(2)), wExpTotal.toFixed(2)];
+    drawRow(totRow, true);
+
+    // Net summary line
+    addPageIfNeeded(10);
+    const net = wIncTotal - wExpTotal;
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(8);
+    pdf.setFillColor(...CREAM);
+    pdf.rect(MARGIN, y, usableW, 8, 'F');
+    pdf.setTextColor(...GREEN);
+    pdf.text(`Income: £${wIncTotal.toFixed(2)}`, MARGIN + 4, y + 5.5);
+    pdf.setTextColor(...RED);
+    pdf.text(`Expenses: £${wExpTotal.toFixed(2)}`, MARGIN + 60, y + 5.5);
+    pdf.setTextColor(net >= 0 ? GREEN[0] : RED[0], net >= 0 ? GREEN[1] : RED[1], net >= 0 ? GREEN[2] : RED[2]);
+    pdf.text(`Net: £${net.toFixed(2)}`, MARGIN + 130, y + 5.5);
+    y += 9;
+
+    // Notes
+    const notes = data[`w${w}_notes`] || '';
+    if (notes.trim()) {
+      addPageIfNeeded(12);
+      pdf.setFont('helvetica', 'italic');
+      pdf.setFontSize(7);
+      pdf.setTextColor(...DARK);
+      const noteLines = pdf.splitTextToSize(`Notes: ${notes}`, usableW - 4);
+      pdf.setFillColor(252, 250, 246);
+      pdf.rect(MARGIN, y, usableW, noteLines.length * 3.5 + 3, 'F');
+      noteLines.forEach((line, li) => pdf.text(line, MARGIN + 2, y + 5 + li * 3.5));
+      y += noteLines.length * 3.5 + 6;
+    }
+
+    y += 8;
+  }
+
+  pdf.save(`Yamin_Finance_${new Date().toISOString().slice(0,10)}.pdf`);
+  toast('PDF exported ✓', 'success');
 }
 
 /* ─── TOAST ─── */
